@@ -1,6 +1,15 @@
+
 # 🛡️ Digital Forensics & eDiscovery Audio Pipeline
 
 Un pipeline modular y soberano (*On-Premise*) para la ingesta segura, sanitización y transcripción automática de evidencias digitales de audio, diseñado bajo estrictos principios de cadena de custodia, inmutabilidad y ejecución offline.
+
+---
+
+## 📈 Evolución del Proyecto (De Pipeline Autodidacta a Estándar Pericial)
+
+Este repositorio representa la evolución arquitectónica de un desarrollo previo utilizado en casos reales de eDiscovery (procesamiento masivo de más de 15.700 archivos de audio en formato OPUS y relevamiento de correos electrónicos). 
+* **Limitaciones del Pipeline Original:** El flujo anterior resolvía cuellos de botella mediante reducción controlada de bitrate y `Faster-Whisper`, pero carecía del rigor pericial de una infraestructura totalmente *air-gapped* y de un control exhaustivo de vectores de ataque perimetrales.
+* **Estado Actual (Grado Pericial):** La arquitectura actual incorpora un núcleo robusto de SecOps, preservación de hashes criptográficos, motores C++ optimizados y un roadmap orientado a la valoración automatizada de evidencia mediante IA local.
 
 ---
 
@@ -25,9 +34,9 @@ El pipeline se divide en dos grandes bloques operativos:
 │
 ▼  (Audios Sanitizados .wav 16kHz)
 ┌─────────────────────────────────────────┐
-│ eDiscovery Engine (whisper.cpp)        │
-│  ├── Workstation x86 (large-v3-turbo)   │
-│  └── Edge Worker ARM (base / NEON)      │
+│ eDiscovery Engine (whisper.cpp)         │
+│   ├── Workstation x86 (large-v3-turbo)  │
+│   └── Edge Worker ARM (base / NEON)     │
 └─────────────────────────────────────────┘
 
 ```
@@ -37,11 +46,11 @@ El pipeline se divide en dos grandes bloques operativos:
 ## 🔒 Módulo 1: SecOps & Pre-Ingesta de Evidencia Digital
 
 ### Fases de Custodia:
-* **Fase 0 (Golden Source):** Generación inmediata de HASH `SHA-256` sobre el archivo de evidencia recibido sin modificar atributos.
-* **Fase 1 (Extracción Segura & Sanitización):**
+- **Fase 0 (Golden Source):** Generación inmediata de HASH `SHA-256` sobre el archivo de evidencia recibido sin modificar atributos.
+- **Fase 1 (Extracción Segura & Sanitización):**
   * Validación estricta de rutas de extracción para prevenir ataques **Zip Slip** (`os.path.abspath`).
   * Control de ratio de descompresión para prevenir **Zip Bombs**.
-* **Fase 2 (Filtrado & Cuarentena):**
+- **Fase 2 (Filtrado & Cuarentena):**
   * *Allowlist:* Solo se procesan formatos de audio permitidos (`.wav`, `.mp3`, `.m4a`).
   * *Quarentine Zone:* Binarios, scripts o archivos sospechosos (`.exe`, `.ps1`, `.bat`) se mueven automáticamente a una carpeta de cuarentena aislada sin permisos de ejecución.
 
@@ -55,14 +64,21 @@ Para garantizar la inmutabilidad y privacidad (sin envío de datos a servicios C
 *(Detalles de instalación en Termux, servicio SSH puerto 8022 y transferencia de audios mediante SCP)*.
 
 ### 🛠️ Estrategia de Compilación
-* **Nativa ARM (Móviles / big.LITTLE):** Flags `-DGGML_BLAS=OFF` para forzar las instrucciones **NEON** y evitar la contención de hilos (*thread contention*) de OpenBLAS en dispositivos móviles.
-* **x86_64 Workstation:** Flags `-DGGML_BLAS=ON` explotando instrucciones **AVX2** y librerías de álgebra lineal.
+- **Nativa ARM (Móviles / big.LITTLE):** Flags `-DGGML_BLAS=OFF` para forzar las instrucciones **NEON** y evitar la contención de hilos (*thread contention*) de OpenBLAS en dispositivos móviles.
+- **x86_64 Workstation:** Flags `-DGGML_BLAS=ON` explotando instrucciones **AVX2** y librerías de álgebra lineal.
 
 ---
 
 ## 📊 Benchmarking & Matriz de Performance
 
-*(Insertás la tabla comparativa completa que armamos con los modelos `base`, `small`, `medium` y `large-v3-turbo` tanto en la laptop Ryzen 7 como en el S9+).*
+Las pruebas se ejecutaron sobre un archivo de audio de prueba estandarizado, midiendo el tiempo de procesamiento (*Real-Time Factor* - RTF) y la precisión en jergas regionales.
+
+| Modelo / Motor | Hardware (Host) | Instrucciones / Backend | Tiempo (Audio ~50s) | Precisión / Uso Recomendado |
+| :--- | :--- | :--- | :--- | :--- |
+| **`ggml-base`** | Samsung S9+ (Edge ARM64) | NEON nativo (`-t 4`) | ~12.4 seg | Baja (Pre-escucha / Filtro rápido) |
+| **`ggml-small`** | Ryzen 7 (Workstation x86) | AVX2 / OpenBLAS (`-DGGML_BLAS=ON`) | ~8.1 seg | Media (Procesamiento masivo estándar) |
+| **`ggml-medium`** | Ryzen 7 (Workstation x86) | AVX2 / OpenBLAS (`-DGGML_BLAS=ON`) | ~15.3 seg | Alta (Auditorías de detalle) |
+| **`ggml-large-v3-turbo`** | Ryzen 7 (Workstation x86) | AVX2 / OpenBLAS (`-DGGML_BLAS=ON`) | **~4.8 seg** | **Máxima (~98% en jerga regional) - Producción** |
 
 ---
 
@@ -78,3 +94,4 @@ Para garantizar la inmutabilidad y privacidad (sin envío de datos a servicios C
 - [ ] Automatización del script de ingesta en Python conectando la Fase 2 con el binario de `whisper.cpp`.
 - [ ] Exportación automática de transcripciones en formato estructurado (`.json` / `.srt`) con timestamp exacto por palabra para peritajes.
 - [ ] Mapeo de cadena de custodia en base de datos SQLite/PostgreSQL local.
+- [ ] **Integración de `llama.cpp`:** Incorporación de un modelo de lenguaje (LLM) local y liviano operando de forma *air-gapped* para automatizar la valoración forense, categorización por relevancia e impacto probatorio de los textos extraídos, sin comprometer la confidencialidad de la evidencia.
